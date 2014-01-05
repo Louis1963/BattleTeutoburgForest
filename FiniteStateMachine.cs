@@ -1,0 +1,5 @@
+﻿
+interface FiniteStateMachine
+{
+		//void FSMUpdate ();
+}
