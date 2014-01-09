@@ -1,18 +1,19 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 using Holoville.HOTween; 
 using Holoville.HOTween.Plugins;
 
 public abstract class Unit : MonoBehaviour
 {
-		public enum Side
-		{
-				Roman,
-				Germanic
-		}
+	public enum Side
+	{
+		Roman,
+		Germanic
+	}
 
-		//state
-		/*public enum State
+	//state
+	/*public enum State
 		{
 				Idle=0,
 				Selected =1,
@@ -23,240 +24,299 @@ public abstract class Unit : MonoBehaviour
 				Volley=6,
 				Dead=7,
 		}*/
-		public static int StateIdle = 0;
-		public static int StateSelected = 1;
-		public static int StateAdvancing = 2;
-		public static int StateMelee = 3;
-		public static int StateDead = 4;
-		public static int StateChase = 5;
+	public static int StateIdle = 0;
+	public static int StateSelected = 1;
+	public static int StateAdvancing = 2;
+	public static int StateMelee = 3;
+	public static int StateDead = 4;
+	public static int StateChase = 5;
+	public static int StateReadyLaunch = 6;
 
-		//public List<> bonusAttacking = new List();
 
-		//components
-		protected SpriteRenderer spriteRenderer;
-		protected Animator animator;
 
-		//basic game features
-		public bool playerManaged = false;
-		public Side side = Side.Roman;
 
-		//movement & selection
-		public float elapsedTime = 0;
-		public Transform targetPosition;
-		public float speed = 1.0F;
-		public Vector3 target;
-		public float smooth = 5.0F;
-		public float maxMovement = 2.0F;
-		bool mouseOnObject;
-		public Ground specialGround;
-	
-		//state
-		public Unit inMeleeWith;
-		public float inMeleeSince;
-		public int lifePoints = 3;
-		public int thresholdForChase = 3;
-	
-		protected void BaseStart ()
-		{
-				spriteRenderer = gameObject.GetComponent<SpriteRenderer> ();
-				animator = gameObject.GetComponent<Animator> ();
+	//components
+	protected SpriteRenderer spriteRenderer;
+	protected Animator animator;
 
-				BattleSceneManager.s.units.Add (this);
+	//movement & selection
+	public float elapsedTime = 0;
+	public Transform targetPosition;
+	public float speed = 1.0F;
+	public Vector3 target;
+	public float smooth = 5.0F;
+	public float maxMovement = 2.0F;
+	bool mouseOnObject;
+	public Ground specialGround;
+
+	//unit specific configuration
+	public int lifePoints = 2;
+	public bool playerManaged = false;
+	public Side side = Side.Roman;
+	//public List<> bonusAttacking = new List();
+	public List<int> statesSupported;
+	public int maxLaunches = 0;
+
+	//runtime state helpers
+	public Unit inMeleeWith;
+	public float inMeleeSince;
+	float lastMovedOn;
 		
-				setState (StateIdle);
+	
+	protected void BaseStart ()
+	{
+		spriteRenderer = gameObject.GetComponent<SpriteRenderer> ();
+		animator = gameObject.GetComponent<Animator> ();
 
-				BattleSceneManager.s.OnUnitClick += OnUnitClick;
-		}
+		statesSupported = new List<int> (new int[] {
+			StateIdle,
+			StateSelected,
+			StateAdvancing,
+			StateMelee,
+			StateDead
+		});
 
-		protected void UnitUpdate ()
-		{
-				var inMelee = StateMelee == getState ();
-				if (inMelee) {
-						if ((inMeleeSince + 5) < Time.time) {
-								Attack (inMeleeWith);
-						} 
-				}
+		BattleSceneManager.s.units.Add (this);
+		
+		SetState (StateIdle);
 
-				if (lifePoints <= 0 && StateDead != getState ())
-						Die ();
-		}
+		BattleSceneManager.s.OnUnitClick += OnUnitClick;
+	}
 
-		void OnMouseEnter ()
-		{
-				mouseOnObject = true;
-		}
+	protected void UnitUpdate ()
+	{
 
-		void OnMouseExit ()
-		{
-				mouseOnObject = false;
-		}
+		//basic state management
 
-		void OnMouseOver ()
-		{
-				if (playerManaged && getState () == StateIdle && Input.GetMouseButtonDown (0)) {
-						BattleSceneManager.s.UnitClick (transform.gameObject);
-				}
-		}
- 
-		void OnUnitClick (GameObject g)
-		{
-				// If g is THIS gameObject
-				if (g == gameObject) {
+		if (lifePoints <= 0 && StateDead != GetState ()) {
 
-						BattleSceneManager.s.focusedUnit = transform;
-						setState (StateSelected);
-						
-				} else {
-						if (getState () == StateSelected)
-								setState (StateIdle);
-				}
-		}
- 
-		void OnCollisionEnter2D (Collision2D col)
-		{
-				if (getState () != StateMelee && getState () != StateDead) {
-						Unit unit = col.gameObject.GetComponent<Unit> ();
-						if (unit != null && !unit.side.Equals (side) && unit.getState () != StateDead) {
-								//Debug.Log ("Hit an enemy!");
-								EnterMelee (unit);
-						} else {
-								//Debug.Log ("Hit a friend!");
-						}
-				}
-		}
+			Die ();
+	
+		} else if (StateChase == GetState ()) {
 
-		void EnterMelee (Unit unit)
-		{
-				this.inMeleeWith = unit;
-				this.setState (StateMelee);
-				this.inMeleeSince = Time.time;
-				unit.inMeleeWith = this;
-				unit.setState (StateMelee);
-				unit.inMeleeSince = Time.time;
+			Chase ();
+		
+		} else if (StateMelee == GetState ()) {
+
+			if ((inMeleeSince + 5) < Time.time) {
+				Attack (inMeleeWith);
+			}
+
+		} else if (StateAdvancing == GetState ()) {
+
+			//shorten target to max distance
+			var dist = Vector3.Distance (transform.position, target);
+			if (dist > maxMovement) {
 				
-		}
+				Vector3 vect = transform.position - target;
+				vect = vect.normalized;
+				vect *= (dist - maxMovement);
+				target += vect;
+				
+			}
+			//transform.position = Vector3.Lerp (transform.position, target, 1);
+			HOTween.To (transform, .5f, "position", target);
+			SetState (StateIdle);
 			
-		void Attack (Unit unit)
-		{
-				this.setState (StateIdle);
-				unit.setState (StateIdle);
-				this.inMeleeWith = null;
-				unit.inMeleeWith = null;
+		}
 
-				int attackForce = ComputeAttackForceAgainst (unit);
-				int defenceForce = unit.ComputeDefenceForceAgainst (this);
 
-				//ground effect
-				if (unit.specialGround != null) {
-						defenceForce += unit.specialGround.defenceBonus;
-				}
-				if (specialGround != null) {
-						attackForce += specialGround.attackBonus;
-				}
+		//human player management
+		if (playerManaged)
+			BaseByPlayerMovement ();
+ 
+	}
 
-				//fate effect
-				attackForce += Random.Range (1, 4);
-				defenceForce += Random.Range (1, 4);
+	void OnMouseEnter ()
+	{
+		mouseOnObject = true;
+	}
 
-				//Debug.Log ("att " + attackForce + " def " + defenceForce);
+	void OnMouseExit ()
+	{
+		mouseOnObject = false;
+	}
 
-				if (attackForce > defenceForce) {
-						unit.lifePoints--;				
-				} else {
-						this.lifePoints--;
-				}
+	void OnMouseOver ()
+	{
+		if (playerManaged && GetState () == StateIdle && Input.GetMouseButtonDown (0)) {
+			BattleSceneManager.s.UnitClick (transform.gameObject);
+		}
+	}
+ 
+	void OnUnitClick (GameObject g)
+	{
+		// If g is THIS gameObject
+		if (g == gameObject) {
+			if (GetState () == StateIdle) {
+				BattleSceneManager.s.focusedUnit = transform;
+				SetState (StateSelected);
+			} else if (GetState () == StateSelected) {
+			}
+						
+		} else {
+			if (GetState () == StateSelected)
+				SetState (StateIdle);
+		}
+	}
+ 
+	void OnCollisionEnter2D (Collision2D col)
+	{
+		if (GetState () != StateMelee && GetState () != StateDead) {
+			Unit unit = col.gameObject.GetComponent<Unit> ();
+			if (unit != null && !unit.side.Equals (side) && unit.GetState () != StateDead) {
+				//Debug.Log ("Hit an enemy!");
+				EnterMelee (unit);
+			} else {
+				//Debug.Log ("Hit a friend!");
+			}
+		}
+	}
 
-				//bounce
-				Vector3 oppositeDirection = (2.0f * transform.position) - unit.transform.position;
+	void EnterMelee (Unit unit)
+	{
+		this.inMeleeWith = unit;
+		this.SetState (StateMelee);
+		this.inMeleeSince = Time.time;
+		unit.inMeleeWith = this;
+		unit.SetState (StateMelee);
+		unit.inMeleeSince = Time.time;
+				
+	}
+			
+	void Attack (Unit unit)
+	{
+		this.SetState (StateIdle);
+		unit.SetState (StateIdle);
+		this.inMeleeWith = null;
+		unit.inMeleeWith = null;
 
-				//Debug.Log ("oppositeDirection.magnitude " + oppositeDirection.magnitude);
-				//gameObject.GetComponent<Rigidbody2D> ().AddForce (oppositeDirection);
-				//GameUtilities.AddForce (gameObject.GetComponent<Rigidbody2D> (), new Vector2 (1, 1), ForceMode.Impulse);
+		int attackForce = ComputeAttackForceAgainst (unit);
+		int defenceForce = unit.ComputeDefenceForceAgainst (this);
 
-				//transform.position = Vector3.Lerp (transform.position, oppositeDirection, 1);
-				HOTween.To (transform, 1, "position", oppositeDirection);
+		//ground effect
+		if (unit.specialGround != null) {
+			defenceForce += unit.specialGround.defenceBonus;
+		}
+		if (specialGround != null) {
+			attackForce += specialGround.attackBonus;
+		}
+
+		//fate effect
+		attackForce += Random.Range (1, 4);
+		defenceForce += Random.Range (1, 4);
+
+		//Debug.Log ("att " + attackForce + " def " + defenceForce);
+
+		if (attackForce > defenceForce) {
+			unit.lifePoints--;				
+		} else {
+			this.lifePoints--;
+		}
+
+		//bounce
+		Vector3 oppositeDirection = (2.0f * transform.position) - unit.transform.position;
+
+		//Debug.Log ("oppositeDirection.magnitude " + oppositeDirection.magnitude);
+		//gameObject.GetComponent<Rigidbody2D> ().AddForce (oppositeDirection);
+		//GameUtilities.AddForce (gameObject.GetComponent<Rigidbody2D> (), new Vector2 (1, 1), ForceMode.Impulse);
+
+		//transform.position = Vector3.Lerp (transform.position, oppositeDirection, 1);
+		HOTween.To (transform, 1, "position", oppositeDirection);
 	
-		}
+	}
 
-		public abstract int ComputeAttackForceAgainst (Unit unit);
-		public abstract int ComputeDefenceForceAgainst (Unit unit);
+	public abstract int ComputeAttackForceAgainst (Unit unit);
+	public abstract int ComputeDefenceForceAgainst (Unit unit);
 
-		public void Die ()
-		{
-				BattleSceneManager.s.OnUnitClick -= OnUnitClick;
-				BattleSceneManager.s.units.Remove (this);
-				//Debug.Log ("died");
-				setState (StateDead);
-		}
+	public void Die ()
+	{
+		BattleSceneManager.s.OnUnitClick -= OnUnitClick;
+		BattleSceneManager.s.units.Remove (this);
+		//Debug.Log ("died");
+		SetState (StateDead);
+	}
 
-		protected Unit FindClosestEnemyAlive ()
-		{
-				Unit closestEnemy = null;
-				float closestDistance = -1;
-				foreach (Unit unit in BattleSceneManager.s.units) {
+	protected Unit FindClosestEnemyAlive ()
+	{
+		Unit closestEnemy = null;
+		float closestDistance = -1;
+		foreach (Unit unit in BattleSceneManager.s.units) {
 
-						if (! (unit.side.Equals (side)) && StateDead != unit.getState ()) {
-								if (closestDistance == -1) {
-										closestEnemy = unit;
-										closestDistance = Vector3.Distance (transform.position, unit.transform.position);
-								} else {		
-										float dist = Vector3.Distance (transform.position, unit.transform.position);
-										if (dist < closestDistance) {
-												closestEnemy = unit;
-												closestDistance = dist;
+			if (! (unit.side.Equals (side)) && StateDead != unit.GetState ()) {
+				if (closestDistance == -1) {
+					closestEnemy = unit;
+					closestDistance = Vector3.Distance (transform.position, unit.transform.position);
+				} else {		
+					float dist = Vector3.Distance (transform.position, unit.transform.position);
+					if (dist < closestDistance) {
+						closestEnemy = unit;
+						closestDistance = dist;
 
-										}
-								}
-						}
+					}
 				}
-				return closestEnemy;
+			}
+		}
+		return closestEnemy;
+	}
+
+	protected void BaseByPlayerMovement ()
+	{
+		if (StateSelected == GetState () && Input.GetMouseButtonDown (0) &&
+			transform.Equals (BattleSceneManager.s.focusedUnit) && !mouseOnObject) {
+			
+			//Debug.Log ("x y " + Input.mousePosition.x + " " + Input.mousePosition.y);
+			
+			Vector3 mouse = Input.mousePosition;
+			Vector3 vec = Camera.main.ScreenToWorldPoint (mouse);
+			//Debug.Log ("x y ScreenToWorldPoint " + vec.x + " " + vec.y);
+			
+			target = new Vector3 (vec.x, vec.y, 0);			
+			SetState (StateAdvancing);
+			BattleSceneManager.s.focusedUnit = null;
 		}
 
-		protected void BaseByPlayerMovement ()
-		{
-				if (StateSelected == getState () && Input.GetMouseButtonDown (0) &&
-						transform.Equals (BattleSceneManager.s.focusedUnit) && !mouseOnObject) {
-			
-						//Debug.Log ("x y " + Input.mousePosition.x + " " + Input.mousePosition.y);
-			
-						Vector3 mouse = Input.mousePosition;
-						Vector3 vec = Camera.main.ScreenToWorldPoint (mouse);
-						//Debug.Log ("x y ScreenToWorldPoint " + vec.x + " " + vec.y);
-			
-						target = new Vector3 (vec.x, vec.y, 0);			
-						setState (StateAdvancing);
-				}
-		
-				if (StateAdvancing == getState ()) {
-						//shorten target to max distance
-						var dist = Vector3.Distance (transform.position, target);
-						if (dist > maxMovement) {
-							
-								Vector3 vect = transform.position - target;
-								vect = vect.normalized;
-								vect *= (dist - maxMovement);
-								target += vect;
+	}	
 
-						}
-						//transform.position = Vector3.Lerp (transform.position, target, 1);
-						HOTween.To (transform, .5f, "position", target);
-						setState (StateIdle);
-						BattleSceneManager.s.focusedUnit = null;
+	public void Chase ()
+	{
+		if ((lastMovedOn + GameManager.i.aiTick) < Time.time) {
+			lastMovedOn = Time.time;
+			
+			Unit unit = FindClosestEnemyAlive ();
+			if (unit != null) {
+				//transform.position = Vector3.Lerp (transform.position, unit.transform.position, fracJourney);
+				Vector3 target = unit.transform.position;
+				var dist = Vector3.Distance (transform.position, target);
+				if (dist > (maxMovement / 3)) {
+					Vector3 vect = transform.position - target;
+					vect = vect.normalized;
+					vect *= (dist - (maxMovement / 3));
+					target += vect;
 				}
-		}	
-
-		public int setState (int state)
-		{
-				this.animator.SetInteger ("curState", state);
-				return state;
+				HOTween.To (transform, .5f, "position", target);
+			}
 		}
+	}
+
+	public int SetState (int state)
+	{
+		if (statesSupported.Contains (state)) {
+			this.animator.SetInteger ("curState", state);
+		} else {
+			Debug.Log ("trying to set state " + state + " failed");
+		}
+		return GetState ();
+	}
 	
-		public int getState ()
-		{
-				int i = StateIdle;
-				if (this.animator != null)
-						i = this.animator.GetInteger ("curState");
-				return i;
-		}
+	public int GetState ()
+	{
+		int i = StateIdle;
+		if (this.animator != null)
+			i = this.animator.GetInteger ("curState");
+		return i;
+	}
+
+
 
 }
