@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public class RomanCavalry : Unit, FiniteStateMachine
+public class RomanCavalry : Unit
 {
 	
 	void Start ()

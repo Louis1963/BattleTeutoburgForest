@@ -3,7 +3,7 @@ using System.Collections;
 using Holoville.HOTween; 
 using Holoville.HOTween.Plugins;
 
-public class GermanicInfantry : Unit, FiniteStateMachine
+public class GermanicInfantry : Unit
 {
 		
 

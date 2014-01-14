@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public class GermanicFanatic : Unit, FiniteStateMachine
+public class GermanicFanatic : Unit
 {
 	void Start ()
 	{

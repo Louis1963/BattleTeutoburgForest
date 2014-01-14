@@ -1,7 +1,7 @@
 using UnityEngine;
 using System.Collections;
 
-public class RomanInfantry : Unit, FiniteStateMachine
+public class RomanInfantry : Unit
 {
 	public bool quadratum = false;
 
@@ -10,6 +10,7 @@ public class RomanInfantry : Unit, FiniteStateMachine
 		this.playerManaged = GameManager.i.romansByPlayer;
 		BaseStart ();
 		maxMovement = 1.0F;
+		remainingAmmo = 2;
 		lifePoints = 3;
 		statesSupported.Add (StateReadyLaunch);
 	}

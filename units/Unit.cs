@@ -1,8 +1,8 @@
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 using Holoville.HOTween; 
-using Holoville.HOTween.Plugins;
 
 public abstract class Unit : MonoBehaviour
 {
@@ -13,17 +13,7 @@ public abstract class Unit : MonoBehaviour
 	}
 
 	//state
-	/*public enum State
-		{
-				Idle=0,
-				Selected =1,
-				Melee=2,
-				Advancing=3,
-				Chasing=4,
-				Quadratum=5,
-				Volley=6,
-				Dead=7,
-		}*/
+
 	public static int StateIdle = 0;
 	public static int StateSelected = 1;
 	public static int StateAdvancing = 2;
@@ -32,12 +22,23 @@ public abstract class Unit : MonoBehaviour
 	public static int StateChase = 5;
 	public static int StateReadyLaunch = 6;
 
+	//audio for state
+	public AudioClip Audio0;
+	public AudioClip Audio1;
+	public AudioClip Audio2;
+	public AudioClip Audio3;
+	public AudioClip Audio4;
+	public AudioClip Audio5;
+	public AudioClip Audio6;
 
-
+	//model
+	public UnitStateExecutor use;
 
 	//components
 	protected SpriteRenderer spriteRenderer;
 	protected Animator animator;
+	protected AudioSource audioSource;
+
 
 	//movement & selection
 	public float elapsedTime = 0;
@@ -55,18 +56,23 @@ public abstract class Unit : MonoBehaviour
 	public Side side = Side.Roman;
 	//public List<> bonusAttacking = new List();
 	public List<int> statesSupported;
-	public int maxLaunches = 0;
+	public int remainingAmmo = 0;
+	public Transform projectilePrefab;
 
 	//runtime state helpers
 	public Unit inMeleeWith;
 	public float inMeleeSince;
-	float lastMovedOn;
+	public float lastMovedOn;
 		
 	
 	protected void BaseStart ()
 	{
+		//this may eventually be extended by specific unit extensions
+		use = new UnitStateExecutor (this);
+
 		spriteRenderer = gameObject.GetComponent<SpriteRenderer> ();
 		animator = gameObject.GetComponent<Animator> ();
+		audioSource = gameObject.GetComponent<AudioSource> ();
 
 		statesSupported = new List<int> (new int[] {
 			StateIdle,
@@ -94,12 +100,12 @@ public abstract class Unit : MonoBehaviour
 	
 		} else if (StateChase == GetState ()) {
 
-			Chase ();
+			use.Chase ();
 		
 		} else if (StateMelee == GetState ()) {
 
 			if ((inMeleeSince + 5) < Time.time) {
-				Attack (inMeleeWith);
+				use.Attack (inMeleeWith);
 			}
 
 		} else if (StateAdvancing == GetState ()) {
@@ -117,10 +123,8 @@ public abstract class Unit : MonoBehaviour
 			//transform.position = Vector3.Lerp (transform.position, target, 1);
 			HOTween.To (transform, .5f, "position", target);
 			SetState (StateIdle);
-			
 		}
-
-
+ 
 		//human player management
 		if (playerManaged)
 			BaseByPlayerMovement ();
@@ -139,7 +143,7 @@ public abstract class Unit : MonoBehaviour
 
 	void OnMouseOver ()
 	{
-		if (playerManaged && GetState () == StateIdle && Input.GetMouseButtonDown (0)) {
+		if (playerManaged && Input.GetMouseButtonDown (0)) {
 			BattleSceneManager.s.UnitClick (transform.gameObject);
 		}
 	}
@@ -148,15 +152,30 @@ public abstract class Unit : MonoBehaviour
 	{
 		// If g is THIS gameObject
 		if (g == gameObject) {
+
 			if (GetState () == StateIdle) {
+
 				BattleSceneManager.s.focusedUnit = transform;
 				SetState (StateSelected);
+			
 			} else if (GetState () == StateSelected) {
+			
+				if (statesSupported.Contains (StateReadyLaunch) && remainingAmmo > 0)
+					SetState (StateReadyLaunch);
+				else
+					SetState (StateIdle);
+			
+			} else if (GetState () == StateReadyLaunch) {
+				SetState (StateIdle);
 			}
 						
 		} else {
-			if (GetState () == StateSelected)
+
+			if (GetState () == StateSelected) {
+ 
 				SetState (StateIdle);
+			}
+				
 		}
 	}
  
@@ -166,65 +185,13 @@ public abstract class Unit : MonoBehaviour
 			Unit unit = col.gameObject.GetComponent<Unit> ();
 			if (unit != null && !unit.side.Equals (side) && unit.GetState () != StateDead) {
 				//Debug.Log ("Hit an enemy!");
-				EnterMelee (unit);
+				use.EnterMelee (unit);
 			} else {
 				//Debug.Log ("Hit a friend!");
 			}
 		}
 	}
 
-	void EnterMelee (Unit unit)
-	{
-		this.inMeleeWith = unit;
-		this.SetState (StateMelee);
-		this.inMeleeSince = Time.time;
-		unit.inMeleeWith = this;
-		unit.SetState (StateMelee);
-		unit.inMeleeSince = Time.time;
-				
-	}
-			
-	void Attack (Unit unit)
-	{
-		this.SetState (StateIdle);
-		unit.SetState (StateIdle);
-		this.inMeleeWith = null;
-		unit.inMeleeWith = null;
-
-		int attackForce = ComputeAttackForceAgainst (unit);
-		int defenceForce = unit.ComputeDefenceForceAgainst (this);
-
-		//ground effect
-		if (unit.specialGround != null) {
-			defenceForce += unit.specialGround.defenceBonus;
-		}
-		if (specialGround != null) {
-			attackForce += specialGround.attackBonus;
-		}
-
-		//fate effect
-		attackForce += Random.Range (1, 4);
-		defenceForce += Random.Range (1, 4);
-
-		//Debug.Log ("att " + attackForce + " def " + defenceForce);
-
-		if (attackForce > defenceForce) {
-			unit.lifePoints--;				
-		} else {
-			this.lifePoints--;
-		}
-
-		//bounce
-		Vector3 oppositeDirection = (2.0f * transform.position) - unit.transform.position;
-
-		//Debug.Log ("oppositeDirection.magnitude " + oppositeDirection.magnitude);
-		//gameObject.GetComponent<Rigidbody2D> ().AddForce (oppositeDirection);
-		//GameUtilities.AddForce (gameObject.GetComponent<Rigidbody2D> (), new Vector2 (1, 1), ForceMode.Impulse);
-
-		//transform.position = Vector3.Lerp (transform.position, oppositeDirection, 1);
-		HOTween.To (transform, 1, "position", oppositeDirection);
-	
-	}
 
 	public abstract int ComputeAttackForceAgainst (Unit unit);
 	public abstract int ComputeDefenceForceAgainst (Unit unit);
@@ -237,7 +204,7 @@ public abstract class Unit : MonoBehaviour
 		SetState (StateDead);
 	}
 
-	protected Unit FindClosestEnemyAlive ()
+	public Unit FindClosestEnemyAlive ()
 	{
 		Unit closestEnemy = null;
 		float closestDistance = -1;
@@ -262,47 +229,61 @@ public abstract class Unit : MonoBehaviour
 
 	protected void BaseByPlayerMovement ()
 	{
-		if (StateSelected == GetState () && Input.GetMouseButtonDown (0) &&
+		if (Input.GetMouseButtonDown (0) &&
 			transform.Equals (BattleSceneManager.s.focusedUnit) && !mouseOnObject) {
-			
-			//Debug.Log ("x y " + Input.mousePosition.x + " " + Input.mousePosition.y);
-			
-			Vector3 mouse = Input.mousePosition;
-			Vector3 vec = Camera.main.ScreenToWorldPoint (mouse);
-			//Debug.Log ("x y ScreenToWorldPoint " + vec.x + " " + vec.y);
-			
-			target = new Vector3 (vec.x, vec.y, 0);			
-			SetState (StateAdvancing);
-			BattleSceneManager.s.focusedUnit = null;
-		}
 
-	}	
-
-	public void Chase ()
-	{
-		if ((lastMovedOn + GameManager.i.aiTick) < Time.time) {
-			lastMovedOn = Time.time;
+			if (StateSelected == GetState () || StateReadyLaunch == GetState ()) {
+				//Debug.Log ("x y " + Input.mousePosition.x + " " + Input.mousePosition.y);
 			
-			Unit unit = FindClosestEnemyAlive ();
-			if (unit != null) {
-				//transform.position = Vector3.Lerp (transform.position, unit.transform.position, fracJourney);
-				Vector3 target = unit.transform.position;
-				var dist = Vector3.Distance (transform.position, target);
-				if (dist > (maxMovement / 3)) {
-					Vector3 vect = transform.position - target;
-					vect = vect.normalized;
-					vect *= (dist - (maxMovement / 3));
-					target += vect;
+				Vector3 mouse = Input.mousePosition;
+				Vector3 vec = Camera.main.ScreenToWorldPoint (mouse);
+				//Debug.Log ("x y ScreenToWorldPoint " + vec.x + " " + vec.y);
+			
+				target = new Vector3 (vec.x, vec.y, 0);	
+
+				if (StateSelected == GetState ()) {
+					SetState (StateAdvancing);
+				} else if (StateReadyLaunch == GetState ()) {
+				
+					use.LaunchProjectile (target);
+					SetState (StateIdle);
 				}
-				HOTween.To (transform, .5f, "position", target);
-			}
+				BattleSceneManager.s.focusedUnit = null;			
+			} 
 		}
 	}
-
+		
+	
 	public int SetState (int state)
 	{
 		if (statesSupported.Contains (state)) {
+
 			this.animator.SetInteger ("curState", state);
+
+			//stop sound for old state
+			if (audioSource != null) {
+
+				//each state change should stop audio from preceding one
+				//audio.Stop ();
+
+				//start sound for new state
+				FieldInfo field = this.GetType ().GetField ("Audio" + state); 
+				if (field != null) {
+
+					AudioClip audioClip = (AudioClip)field.GetValue (this);
+					if (audioClip != null) {
+
+						//but we stop only when there is a new one
+						audioSource.Stop ();
+
+						audioSource.clip = audioClip;
+						if (audioSource.clip != null)
+							audioSource.Play ();
+					} 
+				}
+			}
+
+
 		} else {
 			Debug.Log ("trying to set state " + state + " failed");
 		}
