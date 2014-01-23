@@ -6,6 +6,7 @@ public class RomanCavalry : Unit
 	
 	void Start ()
 	{
+		this.description = "ROMAN_CAVALRY";
 		this.playerManaged = GameManager.i.romansByPlayer;
 		BaseStart ();
 		maxMovement = 3.0F;

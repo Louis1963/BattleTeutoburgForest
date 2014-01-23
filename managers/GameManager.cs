@@ -2,23 +2,30 @@ using System.Collections.Generic;
 
 public class GameManager
 {
-		public bool romansByPlayer = true;
-		public bool germanicsByPlayer = false;
-		public int romanPoints = 0;
-		public int germanicPoints = 0;
-		public float aiTick = 2f;
+	public bool romansByPlayer = true;
+	public bool germanicsByPlayer = false;
+	public int romanPoints = 0;
+	public int germanicPoints = 0;
+	public float aiTick = 2f;
+	private int idCounter = 0;
 
-		// Usual horrific singleton
-		static GameManager _instance = new GameManager ();
+	public int GenerateId ()
+	{
+		return ++idCounter;
+	}
 
-		public static GameManager  i {
-				get { return _instance; }
-				private set { _instance = value; }
-		}
+	// Usual horrific singleton
+	static GameManager _instance = new GameManager ();
 
-		private GameManager ()
-		{
-		}
+	public static GameManager  i {
+		get { return _instance; }
+		private set { _instance = value; }
+	}
+
+	private GameManager ()
+	{
+		I18n.setup ();
+	}
 
 	
 }

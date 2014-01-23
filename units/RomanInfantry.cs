@@ -7,11 +7,15 @@ public class RomanInfantry : Unit
 
 	void Start ()
 	{
+		this.description = "ROMAN_INFANTRY";
 		this.playerManaged = GameManager.i.romansByPlayer;
-		BaseStart ();
+
+		setLifePoints (3);
 		maxMovement = 1.0F;
 		remainingAmmo = 2;
-		lifePoints = 3;
+
+		BaseStart ();
+
 		statesSupported.Add (StateReadyLaunch);
 	}
  

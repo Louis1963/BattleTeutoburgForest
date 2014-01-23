@@ -13,7 +13,6 @@ public abstract class Unit : MonoBehaviour
 	}
 
 	//state
-
 	public static int StateIdle = 0;
 	public static int StateSelected = 1;
 	public static int StateAdvancing = 2;
@@ -38,6 +37,7 @@ public abstract class Unit : MonoBehaviour
 	protected SpriteRenderer spriteRenderer;
 	protected Animator animator;
 	protected AudioSource audioSource;
+	public Transform healthBar;
 
 
 	//movement & selection
@@ -51,28 +51,61 @@ public abstract class Unit : MonoBehaviour
 	public Ground specialGround;
 
 	//unit specific configuration
-	public int lifePoints = 2;
+	public string description = "undefined";
+	private int lifePoints = 2;
 	public bool playerManaged = false;
 	public Side side = Side.Roman;
-	//public List<> bonusAttacking = new List();
 	public List<int> statesSupported;
 	public int remainingAmmo = 0;
 	public Transform projectilePrefab;
+	public Transform healthBarPrefab;
+
 
 	//runtime state helpers
+	public readonly int id = GameManager.i.GenerateId ();
 	public Unit inMeleeWith;
 	public float inMeleeSince;
 	public float lastMovedOn;
+	public List<Message> messages = new List<Message> ();
 		
-	
+
 	protected void BaseStart ()
 	{
+
 		//this may eventually be extended by specific unit extensions
 		use = new UnitStateExecutor (this);
 
 		spriteRenderer = gameObject.GetComponent<SpriteRenderer> ();
 		animator = gameObject.GetComponent<Animator> ();
 		audioSource = gameObject.GetComponent<AudioSource> ();
+
+		//add a health bar
+		if (healthBarPrefab != null) {
+
+			//healthBarPrefab.gameObject = gameObject;
+
+			GameObject gui = GameObject.FindGameObjectWithTag ("GuiManager");
+			//GameObject healthBarPrefab = GameObject.FindGameObjectWithTag ("HealthBar");
+		
+			healthBar = (Transform)Instantiate (healthBarPrefab, transform.position, transform.rotation);		
+			if (healthBar != null) {
+
+				healthBar.name = "HealthBar";
+				healthBar.parent = gui.transform;
+
+				healthBar.GetComponent<dfFollowObject> ().mainCamera = Camera.main;
+				healthBar.GetComponent<dfFollowObject> ().attach = gameObject;
+				healthBar.GetComponent<dfFollowObject> ().enabled = true;
+
+				healthBar.GetComponentInChildren<dfProgressBar> ().MaxValue = lifePoints;
+				healthBar.GetComponentInChildren<dfProgressBar> ().Value = lifePoints;
+
+				dfPanel dfp = healthBar.GetComponent<dfPanel> ();
+				dfp.IsVisible = false;
+
+			} else
+				Debug.Log ("could not instantiate");
+		}
 
 		statesSupported = new List<int> (new int[] {
 			StateIdle,
@@ -134,11 +167,22 @@ public abstract class Unit : MonoBehaviour
 	void OnMouseEnter ()
 	{
 		mouseOnObject = true;
+		if (healthBar != null) {
+			dfPanel dfp = healthBar.GetComponent<dfPanel> ();
+			dfp.IsVisible = true;
+		}
 	}
 
 	void OnMouseExit ()
 	{
 		mouseOnObject = false;
+		if (healthBar != null) {
+			dfPanel dfp = healthBar.GetComponent<dfPanel> ();
+			dfp.IsVisible = false;
+			dfLabel minus = healthBar.GetComponentInChildren<dfLabel> ();
+			minus.IsVisible = false;
+		}
+
 	}
 
 	void OnMouseOver ()
@@ -192,9 +236,47 @@ public abstract class Unit : MonoBehaviour
 		}
 	}
 
+	protected void setLifePoints (int lifePoints)
+	{
+		this.lifePoints = lifePoints;
+
+	}
+
+	public int changeLifePoints (int delta)
+	{
+		lifePoints += delta;
+		if (healthBar != null) {
+			dfPanel dfp = healthBar.GetComponent<dfPanel> ();
+			dfp.IsVisible = true;
+			dfProgressBar dpb = dfp.GetComponentInChildren<dfProgressBar> ();
+
+			if (delta < 0) {
+				dfLabel minus = dfp.GetComponentInChildren<dfLabel> ();
+				minus.IsVisible = true;
+			}
+			dpb.Value = lifePoints;
+		}
+		return lifePoints;
+	}
+
 
 	public abstract int ComputeAttackForceAgainst (Unit unit);
 	public abstract int ComputeDefenceForceAgainst (Unit unit);
+
+	/*void OnGUI ()
+	{
+		foreach (Message m in messages) {
+			if (m.startedRenderingOn == 0)
+				m.startedRenderingOn = Time.time;
+			GUI.Box (new Rect (100, 100, 100, 100), m.message);
+		}
+
+		foreach (Message m in new List<Message>(messages)) {
+			if ((Time.time - m.startedRenderingOn) > m.duration)
+				messages.Remove (m);
+		}
+
+	}*/
 
 	public void Die ()
 	{

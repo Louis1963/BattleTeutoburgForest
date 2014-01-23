@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections;
 using Holoville.HOTween; 
 using Holoville.HOTween.Plugins;
@@ -14,6 +14,7 @@ public class GermanicInfantry : Unit
 
 	void Start ()
 	{
+		this.description = "GERMANIC_INFANTRY";
 		this.playerManaged = GameManager.i.germanicsByPlayer;
 		this.side = Side.Germanic;
 		BaseStart ();

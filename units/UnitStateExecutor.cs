@@ -3,6 +3,7 @@ using System.Collections;
 using Holoville.HOTween; 
 using Holoville.HOTween.Plugins;
 
+
 public class UnitStateExecutor
 {
 	public Unit u;
@@ -23,19 +24,19 @@ public class UnitStateExecutor
 		
 	}
 	
-	public void Attack (Unit unit)
+	public void Attack (Unit defensor)
 	{
 		u.SetState (Unit.StateIdle);
-		unit.SetState (Unit.StateIdle);
+		defensor.SetState (Unit.StateIdle);
 		u.inMeleeWith = null;
-		unit.inMeleeWith = null;
+		defensor.inMeleeWith = null;
 		
-		int attackForce = u.ComputeAttackForceAgainst (unit);
-		int defenceForce = unit.ComputeDefenceForceAgainst (u);
+		int attackForce = u.ComputeAttackForceAgainst (defensor);
+		int defenceForce = defensor.ComputeDefenceForceAgainst (u);
 		
 		//ground effect
-		if (unit.specialGround != null) {
-			defenceForce += unit.specialGround.defenceBonus;
+		if (defensor.specialGround != null) {
+			defenceForce += defensor.specialGround.defenceBonus;
 		}
 		if (u.specialGround != null) {
 			attackForce += u.specialGround.attackBonus;
@@ -46,15 +47,20 @@ public class UnitStateExecutor
 		defenceForce += Random.Range (1, 4);
 		
 		//Debug.Log ("att " + attackForce + " def " + defenceForce);
-		
-		if (attackForce > defenceForce) {
-			unit.lifePoints--;				
+
+		bool defensorHit = attackForce > defenceForce;
+		if (defensorHit) {
+			defensor.changeLifePoints (-1);
+			u.changeLifePoints (0);
+			//unit.messages.Add (new Message (I18n.T ("UNIT_DEFENSOR_%%_HIT", I18n.T (unit.description)), 2f, Message.MessageEffect.OVERSPRITE));
 		} else {
-			u.lifePoints--;
+			defensor.changeLifePoints (0);
+			u.changeLifePoints (-1);
+			//u.messages.Add (new Message (I18n.T ("UNIT_ATTACKER_%%_HIT", I18n.T (u.description)), 2f, Message.MessageEffect.OVERSPRITE));
 		}
 		
 		//bounce
-		Vector3 oppositeDirection = (2.0f * u.transform.position) - unit.transform.position;
+		Vector3 oppositeDirection = (2.0f * u.transform.position) - defensor.transform.position;
 		
 		//Debug.Log ("oppositeDirection.magnitude " + oppositeDirection.magnitude);
 		//gameObject.GetComponent<Rigidbody2D> ().AddForce (oppositeDirection);

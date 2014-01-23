@@ -13,7 +13,6 @@ public class Javelin : MonoBehaviour
 		animator = gameObject.GetComponent<Animator> ();
 	}
 
-
 	void OnTriggerEnter2D (Collider2D col)
 	{
 		bool isHighAbove = animator.GetCurrentAnimatorStateInfo (0).IsName ("JavelinUpwards");
@@ -24,8 +23,10 @@ public class Javelin : MonoBehaviour
 			if (unit != null && unit != launcher) {
 			
 				//how cool that we have a generic unit notion!!!
-				unit.lifePoints--;
+				unit.changeLifePoints (-1);
 				unit.maxMovement -= 0.2F;
+
+
 				Destroy (gameObject);
 			}
 		}
