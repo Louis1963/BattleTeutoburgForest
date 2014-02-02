@@ -8,7 +8,7 @@ public class Swamp : MonoBehaviour
 	{
 		Unit unit = col.gameObject.GetComponent<Unit> ();
 		if (unit != null && unit.side.Equals (Unit.Side.Roman)) {
-			unit.Die ();
+			unit.ChangeLifePoints (-unit.GetLifePoints ());
 		}
 	}
 }

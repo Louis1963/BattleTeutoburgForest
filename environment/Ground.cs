@@ -18,7 +18,8 @@ public class Ground : MonoBehaviour
 	void Start ()
 	{
 		if (groundType == GroundType.WOOD) {
-			defenceBonus = 1;
+			//removed bonus: its one to one
+			defenceBonus = 0;
 			attackBonus = 0;
 		} else if (groundType == GroundType.HILLTOP) {
 			defenceBonus = 1;

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using Holoville.HOTween; 
 
+
 public abstract class Unit : MonoBehaviour
 {
 	public enum Side
@@ -236,13 +237,18 @@ public abstract class Unit : MonoBehaviour
 		}
 	}
 
-	protected void setLifePoints (int lifePoints)
+	protected void SetLifePoints (int lifePoints)
 	{
 		this.lifePoints = lifePoints;
 
 	}
 
-	public int changeLifePoints (int delta)
+	public int GetLifePoints ()
+	{
+		return lifePoints;
+	}
+
+	public int ChangeLifePoints (int delta)
 	{
 		lifePoints += delta;
 		if (healthBar != null) {
@@ -281,10 +287,43 @@ public abstract class Unit : MonoBehaviour
 	public void Die ()
 	{
 		BattleSceneManager.s.OnUnitClick -= OnUnitClick;
-		BattleSceneManager.s.units.Remove (this);
-		//Debug.Log ("died");
-		SetState (StateDead);
+		//BattleSceneManager.s.units.Remove (this); //remmed out: we keep the dead
+
+		if (GetState () != StateDead) {
+			SetState (StateDead);
+
+			//check that there is at least one alive
+			if (Side.Roman == side) {
+				bool oneAlive = false;
+				GameManager.i.germanicPoints++;
+				foreach (Unit u in BattleSceneManager.s.units) {
+					if (Side.Roman == u.side && StateDead != u.GetState ()) {
+						oneAlive = true;
+						break;
+					}
+				}
+				GameManager.i.allRomansDead = !oneAlive;
+				U.L (GameManager.i.allRomansDead);
+
+
+			} else {
+				bool oneAlive = false;
+				GameManager.i.romanPoints++;
+				foreach (Unit u in BattleSceneManager.s.units) {
+					if (Side.Germanic == u.side && StateDead != u.GetState ()) {
+						oneAlive = true;
+						break;
+					}
+				}
+				GameManager.i.allGermanicDead = !oneAlive;
+				U.L (GameManager.i.allGermanicDead);
+			}
+		}
+		BattleSceneManager.s.UpdateGUIScores ();
 	}
+
+
+
 
 	public Unit FindClosestEnemyAlive ()
 	{

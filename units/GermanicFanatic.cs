@@ -15,9 +15,16 @@ public class GermanicFanatic : Unit
  
 	void Update ()
 	{
-		UnitUpdate ();				
+		UnitUpdate ();	
+		
+		if (StateIdle == GetState ()) {
+			
+			if (BattleSceneManager.s.germanicChaseEnabled) {
+				SetState (StateChase);
+			}
+		}
+		
 	}
-
 
 	public override int ComputeAttackForceAgainst (Unit unit)
 	{

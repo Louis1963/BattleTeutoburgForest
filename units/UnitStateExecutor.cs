@@ -26,6 +26,8 @@ public class UnitStateExecutor
 	
 	public void Attack (Unit defensor)
 	{
+
+		Debug.Log (u.GetType ().Name + " attacks " + defensor.GetType ().Name);
 		u.SetState (Unit.StateIdle);
 		defensor.SetState (Unit.StateIdle);
 		u.inMeleeWith = null;
@@ -38,24 +40,25 @@ public class UnitStateExecutor
 		if (defensor.specialGround != null) {
 			defenceForce += defensor.specialGround.defenceBonus;
 		}
+
 		if (u.specialGround != null) {
 			attackForce += u.specialGround.attackBonus;
 		}
 		
 		//fate effect
-		attackForce += Random.Range (1, 4);
-		defenceForce += Random.Range (1, 4);
+		attackForce += Random.Range (1, 6);
+		defenceForce += Random.Range (1, 6);
 		
-		//Debug.Log ("att " + attackForce + " def " + defenceForce);
+		Debug.Log ("att " + attackForce + " def " + defenceForce);
 
 		bool defensorHit = attackForce > defenceForce;
 		if (defensorHit) {
-			defensor.changeLifePoints (-1);
-			u.changeLifePoints (0);
+			defensor.ChangeLifePoints (-1);
+			u.ChangeLifePoints (0);
 			//unit.messages.Add (new Message (I18n.T ("UNIT_DEFENSOR_%%_HIT", I18n.T (unit.description)), 2f, Message.MessageEffect.OVERSPRITE));
 		} else {
-			defensor.changeLifePoints (0);
-			u.changeLifePoints (-1);
+			defensor.ChangeLifePoints (0);
+			u.ChangeLifePoints (-1);
 			//u.messages.Add (new Message (I18n.T ("UNIT_ATTACKER_%%_HIT", I18n.T (u.description)), 2f, Message.MessageEffect.OVERSPRITE));
 		}
 		

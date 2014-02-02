@@ -8,6 +8,8 @@ public class GameManager
 	public int germanicPoints = 0;
 	public float aiTick = 2f;
 	private int idCounter = 0;
+	public bool allRomansDead = false;
+	public bool allGermanicDead = false;
 
 	public int GenerateId ()
 	{

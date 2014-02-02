@@ -10,7 +10,7 @@ public class RomanInfantry : Unit
 		this.description = "ROMAN_INFANTRY";
 		this.playerManaged = GameManager.i.romansByPlayer;
 
-		setLifePoints (3);
+		SetLifePoints (3);
 		maxMovement = 1.0F;
 		remainingAmmo = 2;
 
